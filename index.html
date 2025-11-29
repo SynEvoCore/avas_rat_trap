@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Ava's Rat Trap</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #222;
+            --text-color: #33ff00; /* Retro Terminal Green */
+            --accent-color: #ff3333;
+            --ui-font: 'Press Start 2P', cursive;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: var(--ui-font);
+            overflow: hidden; /* Prevents scrolling */
+            touch-action: manipulation; /* Improves mobile tap response */
+            user-select: none;
+            cursor: crosshair;
+        }
+
+        /* UI Overlay */
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 20px;
+            box-sizing: border-box;
+            display: flex;
+            justify-content: space-between;
+            pointer-events: none; /* Let clicks pass through to game */
+            z-index: 10;
+            text-shadow: 2px 2px #000;
+        }
+
+        .stat-box {
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        /* The Game Board */
+        #game-area {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1;
+        }
+
+        /* Game Objects */
+        .entity {
+            position: absolute;
+            font-size: 40px;
+            transform: translate(-50%, -50%);
+            transition: transform 0.1s;
+            cursor: crosshair;
+            user-select: none;
+        }
+
+        /* The Rat needs smooth movement, handled by JS, but we add a wobble */
+        .rat {
+            font-size: 50px;
+            z-index: 5;
+        }
+
+        /* Screens (Start/Game Over) */
+        .screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 20;
+            text-align: center;
+        }
+
+        button {
+            background: var(--text-color);
+            color: #000;
+            border: 4px solid #fff;
+            padding: 15px 20px;
+            font-family: var(--ui-font);
+            font-size: 16px;
+            margin-top: 20px;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+
+        button:active {
+            transform: scale(0.95);
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* Floating text for damage/points */
+        .floater {
+            position: absolute;
+            font-weight: bold;
+            pointer-events: none;
+            animation: floatUp 1s forwards;
+            font-family: var(--ui-font);
+            z-index: 15;
+            text-shadow: 2px 2px 0 #000;
+        }
+
+        @keyframes floatUp {
+            0% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-50px); }
+        }
+
+        /* Damage flash effect */
+        .shake {
+            animation: shake 0.5s;
+        }
+
+        @keyframes shake {
+            0% { transform: translate(1px, 1px) rotate(0deg); }
+            10% { transform: translate(-1px, -2px) rotate(-1deg); }
+            20% { transform: translate(-3px, 0px) rotate(1deg); }
+            30% { transform: translate(3px, 2px) rotate(0deg); }
+            40% { transform: translate(1px, -1px) rotate(1deg); }
+            50% { transform: translate(-1px, 2px) rotate(-1deg); }
+            60% { transform: translate(-3px, 1px) rotate(0deg); }
+            70% { transform: translate(3px, 1px) rotate(-1deg); }
+            80% { transform: translate(-1px, -1px) rotate(1deg); }
+            90% { transform: translate(1px, 2px) rotate(0deg); }
+            100% { transform: translate(1px, -2px) rotate(-1deg); }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="ui-layer">
+        <div class="stat-box">
+            SCORE: <span id="score-display">0</span><br>
+            HIGH SCORE: <span id="high-score-display">0</span>
+        </div>
+        <div class="stat-box" style="text-align: right; color: #ffcc00;">
+            NET DURABILITY: <span id="net-display">15</span>
+        </div>
+    </div>
+
+    <div id="start-screen" class="screen">
+        <h1 style="color: var(--text-color); margin-bottom: 10px;">AVA'S RAT TRAP</h1>
+        <p style="font-size: 12px; max-width: 80%; line-height: 1.6;">
+            TAP THE RAT (+1 Score)<br>
+            AVOID BOMBS (-3 Net)<br>
+            MISSING CLICKS (-1 Net)<br>
+            <br>
+            <span style="color:#ffcc00">WARNING:</span><br>
+            If Rat eats Cheese, it gets FASTER!
+        </p>
+        <button onclick="startGame()">START GAME</button>
+    </div>
+
+    <div id="game-over-screen" class="screen hidden">
+        <h1 style="color: var(--accent-color);">NET BROKEN!</h1>
+        <p>FINAL SCORE: <span id="final-score">0</span></p>
+        <button onclick="startGame()">TRY AGAIN</button>
+    </div>
+
+    <div id="game-area"></div>
+
+    <script>
+        // Game State Variables
+        let score = 0;
+        let highScore = localStorage.getItem('avasRatTrapHighScore') || 0;
+        let netHealth = 15;
+        let ratSpeed = 2; // Pixels per frame
+        let gameActive = false;
+        let animationFrameId;
+
+        // Configuration
+        const MAX_NET_HEALTH = 15;
+        const RAT_SIZE = 50;
+        const ENTITY_SIZE = 40;
+        
+        // DOM Elements
+        const gameArea = document.getElementById('game-area');
+        const scoreDisplay = document.getElementById('score-display');
+        const netDisplay = document.getElementById('net-display');
+        const highScoreDisplay = document.getElementById('high-score-display');
+        const startScreen = document.getElementById('start-screen');
+        const gameOverScreen = document.getElementById('game-over-screen');
+        const finalScoreDisplay = document.getElementById('final-score');
+
+        // Set High Score on load
+        highScoreDisplay.innerText = highScore;
+
+        // The Rat Object
+        const rat = {
+            x: window.innerWidth / 2,
+            y: window.innerHeight / 2,
+            element: null,
+            targetX: window.innerWidth / 2,
+            targetY: window.innerHeight / 2,
+            moveTimer: 0
+        };
+
+        // --- Core Game Functions ---
+
+        function startGame() {
+            // Reset variables
+            score = 0;
+            netHealth = 15;
+            ratSpeed = 2; // Base speed
+            gameActive = true;
+            
+            // Clear board
+            gameArea.innerHTML = '';
+            
+            // Update UI
+            updateUI();
+            startScreen.classList.add('hidden');
+            gameOverScreen.classList.add('hidden');
+
+            // Create Rat
+            createRat();
+
+            // Start Loop
+            lastTime = performance.now();
+            requestAnimationFrame(gameLoop);
+        }
+
+        function createRat() {
+            const ratEl = document.createElement('div');
+            ratEl.classList.add('entity', 'rat');
+            ratEl.innerText = '🐀';
+            // Important: prevent clicking the rat from triggering the background "Miss" click
+            ratEl.addEventListener('click', (e) => {
+                e.stopPropagation(); 
+                catchRat(e);
+            });
+            // Touch support
+            ratEl.addEventListener('touchstart', (e) => {
+                e.stopPropagation(); 
+                e.preventDefault(); // prevent mouse emulation
+                catchRat(e.touches[0]);
+            });
+
+            gameArea.appendChild(ratEl);
+            rat.element = ratEl;
+            setNewRatTarget();
+        }
+
+        function catchRat(e) {
+            if (!gameActive) return;
+            
+            score++;
+            ratSpeed += 0.2; // Slight speed increase generally
+            showFloatingText(e.clientX, e.clientY, "+1", "#33ff00");
+            
+            // Spawn logic
+            handleSpawns();
+
+            // Reposition Rat immediately to feel like a "catch & release" or new rat
+            rat.x = Math.random() * (window.innerWidth - RAT_SIZE);
+            rat.y = Math.random() * (window.innerHeight - RAT_SIZE);
+            setNewRatTarget();
+            
+            updateUI();
+        }
+
+        function handleSpawns() {
+            // As score goes up, spawn cheese and bombs
+            // Chance for Cheese ( Speed boost for rat )
+            if (Math.random() > 0.6) { 
+                spawnEntity('🧀', 'cheese');
+            }
+            // Chance for Bomb ( Trap ) increases with score
+            let bombChance = 0.2 + (score * 0.01);
+            if (Math.random() < bombChance) {
+                spawnEntity('💣', 'bomb');
+            }
+        }
+
+        function spawnEntity(emoji, type) {
+            const el = document.createElement('div');
+            el.classList.add('entity');
+            el.innerText = emoji;
+            el.dataset.type = type;
+            
+            // Random Position
+            const x = Math.random() * (window.innerWidth - ENTITY_SIZE);
+            const y = Math.random() * (window.innerHeight - ENTITY_SIZE);
+            el.style.left = x + 'px';
+            el.style.top = y + 'px';
+
+            // Interaction
+            const hitHandler = (e) => {
+                e.stopPropagation();
+                if(e.type === 'touchstart') e.preventDefault();
+                
+                if (type === 'bomb') {
+                    damageNet(3, e.clientX || e.touches[0].clientX, e.clientY || e.touches[0].clientY);
+                    el.remove();
+                } else if (type === 'cheese') {
+                    // Clicking cheese removes it but wastes a click (optional rule, or we can make it neutral)
+                    // For now let's make it cost durability because you missed the rat!
+                    damageNet(1, e.clientX || e.touches[0].clientX, e.clientY || e.touches[0].clientY);
+                }
+            };
+
+            el.addEventListener('click', hitHandler);
+            el.addEventListener('touchstart', hitHandler);
+
+            gameArea.appendChild(el);
+        }
+
+        function damageNet(amount, x, y) {
+            netHealth -= amount;
+            showFloatingText(x, y, `-${amount}`, "#ff3333");
+            
+            // Visual feedback
+            document.body.classList.add('shake');
+            setTimeout(() => document.body.classList.remove('shake'), 500);
+
+            if (netHealth <= 0) {
+                gameOver();
+            }
+            updateUI();
+        }
+
+        // --- The Game Loop ---
+
+        let lastTime = 0;
+        function gameLoop(timestamp) {
+            if (!gameActive) return;
+            const deltaTime = timestamp - lastTime;
+            lastTime = timestamp;
+
+            moveRat();
+            checkCollisions();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        function setNewRatTarget() {
+            // AI: If cheese exists, 50% chance to target it
+            const cheeseElements = document.querySelectorAll('[data-type="cheese"]');
+            if (cheeseElements.length > 0 && Math.random() > 0.5) {
+                // Target nearest cheese
+                const cheese = cheeseElements[Math.floor(Math.random() * cheeseElements.length)];
+                rat.targetX = parseFloat(cheese.style.left);
+                rat.targetY = parseFloat(cheese.style.top);
+            } else {
+                // Random movement
+                rat.targetX = Math.random() * (window.innerWidth - RAT_SIZE);
+                rat.targetY = Math.random() * (window.innerHeight - RAT_SIZE);
+            }
+        }
+
+        function moveRat() {
+            if (!rat.element) return;
+
+            // Calculate direction vector
+            const dx = rat.targetX - rat.x;
+            const dy = rat.targetY - rat.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            if (distance < 10) {
+                setNewRatTarget(); // Reached destination
+            } else {
+                // Move towards target
+                rat.x += (dx / distance) * ratSpeed;
+                rat.y += (dy / distance) * ratSpeed;
+            }
+
+            // Apply to DOM
+            rat.element.style.left = rat.x + 'px';
+            rat.element.style.top = rat.y + 'px';
+            
+            // Flip sprite based on direction
+            rat.element.style.transform = `translate(-50%, -50%) scaleX(${dx > 0 ? -1 : 1})`;
+        }
+
+        function checkCollisions() {
+            // Check if Rat hits Cheese
+            const cheeses = document.querySelectorAll('[data-type="cheese"]');
+            const ratRect = rat.element.getBoundingClientRect();
+
+            cheeses.forEach(cheese => {
+                const cheeseRect = cheese.getBoundingClientRect();
+                
+                // Simple AABB Collision
+                if (ratRect.left < cheeseRect.right &&
+                    ratRect.right > cheeseRect.left &&
+                    ratRect.top < cheeseRect.bottom &&
+                    ratRect.bottom > cheeseRect.top) {
+                    
+                    // Rat ate the cheese!
+                    cheese.remove();
+                    ratSpeed += 1; // Speed boost penalty
+                    showFloatingText(rat.x, rat.y, "GULP!", "#ffff00");
+                }
+            });
+        }
+
+        // --- Background Click (The Miss Mechanic) ---
+        gameArea.addEventListener('click', (e) => {
+            if (!gameActive) return;
+            // If we are here, we clicked the background, not an entity
+            damageNet(1, e.clientX, e.clientY);
+        });
+
+        // --- Utilities ---
+
+        function updateUI() {
+            scoreDisplay.innerText = score;
+            netDisplay.innerText = Math.max(0, netHealth);
+            
+            // Color change for low health
+            if(netHealth <= 5) netDisplay.style.color = '#ff3333';
+            else netDisplay.style.color = '#ffcc00';
+        }
+
+        function gameOver() {
+            gameActive = false;
+            finalScoreDisplay.innerText = score;
+            
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('avasRatTrapHighScore', highScore);
+                highScoreDisplay.innerText = highScore;
+            }
+            
+            gameOverScreen.classList.remove('hidden');
+        }
+
+        function showFloatingText(x, y, text, color) {
+            const el = document.createElement('div');
+            el.classList.add('floater');
+            el.style.left = x + 'px';
+            el.style.top = y + 'px';
+            el.style.color = color;
+            el.innerText = text;
+            document.body.appendChild(el);
+            
+            // Clean up
+            setTimeout(() => el.remove(), 1000);
+        }
+
+        // Handle window resizing
+        window.addEventListener('resize', () => {
+            // Keep rat in bounds
+            if(rat.x > window.innerWidth) rat.x = window.innerWidth - 50;
+            if(rat.y > window.innerHeight) rat.y = window.innerHeight - 50;
+        });
+
+    </script>
+</body>
+</html>
