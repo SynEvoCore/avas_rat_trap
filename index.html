@@ -3,153 +3,133 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Ava's Rat Trap: Cat Update</title>
+    <title>Ava's Rat Trap: True Infestation</title>
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     <style>
         :root {
             --bg-color: #222;
             --text-color: #33ff00;
             --accent-color: #ff3333;
+            --rat-color: #ffcc00;
             --ui-font: 'Press Start 2P', cursive;
         }
 
         body {
-            margin: 0;
-            padding: 0;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            font-family: var(--ui-font);
-            overflow: hidden;
-            touch-action: manipulation;
-            user-select: none;
-            cursor: crosshair;
+            margin: 0; padding: 0; background-color: var(--bg-color); color: var(--text-color);
+            font-family: var(--ui-font); overflow: hidden; touch-action: manipulation;
+            user-select: none; cursor: crosshair;
         }
 
+        /* --- UI LAYER --- */
         #ui-layer {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            padding: 20px;
-            box-sizing: border-box;
-            display: flex;
-            justify-content: space-between;
-            pointer-events: none;
-            z-index: 10;
-            text-shadow: 2px 2px #000;
+            position: absolute; top: 0; left: 0; width: 100%; padding: 20px;
+            box-sizing: border-box; display: flex; justify-content: space-between;
+            pointer-events: none; z-index: 50; text-shadow: 2px 2px #000;
         }
 
-        /* INVENTORY STYLES */
+        /* TUG BAR */
+        #tug-container {
+            position: absolute; top: 15px; left: 50%; transform: translateX(-50%);
+            width: 300px; height: 25px; 
+            border: 3px solid #fff; 
+            background: var(--accent-color);
+            z-index: 50; border-radius: 4px; overflow: hidden;
+        }
+        #tug-bar {
+            width: 50%; height: 100%; background: var(--text-color); transition: width 0.2s;
+        }
+        #center-marker {
+            position: absolute; top: 0; bottom: 0; left: 50%; width: 2px; background: #000;
+        }
+        #timer-display {
+            position: absolute; top: 45px; left: 50%; transform: translateX(-50%);
+            font-size: 14px; color: #fff; z-index: 50;
+        }
+
+        /* INVENTORY */
         #inventory-container {
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            gap: 10px;
-            z-index: 15;
+            position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+            display: flex; gap: 10px; z-index: 50;
         }
-
         .inv-slot {
-            width: 50px;
-            height: 50px;
-            border: 3px solid #555;
-            background: rgba(0,0,0,0.5);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-            cursor: default;
-            transition: 0.2s;
+            width: 50px; height: 50px; border: 3px solid #555; background: rgba(0,0,0,0.5);
+            display: flex; align-items: center; justify-content: center; font-size: 24px;
+            cursor: default; transition: 0.2s;
         }
-
         .inv-slot.filled {
-            border-color: #ffcc00;
-            cursor: pointer;
-            box-shadow: 0 0 10px #ffcc00;
-            animation: pulse 2s infinite;
+            border-color: #ffcc00; cursor: pointer; box-shadow: 0 0 10px #ffcc00; animation: pulse 2s infinite;
         }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
 
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-            100% { transform: scale(1); }
+        #game-area { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; }
+
+        /* BUNKERS */
+        .bunker {
+            position: absolute; transform: translate(-50%, -50%);
+            border: 4px solid #00ff00; border-radius: 50%; background: #2a2a2a;
+            z-index: 10; pointer-events: none;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            font-size: 10px; color: #fff; text-align: center;
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.1);
+            transition: border-color 0.2s;
         }
+        .bunker-count { font-size: 16px; color: #00ffff; margin-top: 5px; font-weight: bold; }
+        .bunker.full { border-color: #ff0000 !important; background: #330000; }
 
-        #game-area {
-            position: absolute;
-            top: 0; left: 0; width: 100vw; height: 100vh;
-            z-index: 1;
-        }
-
+        /* ENTITIES */
         .entity {
-            position: absolute;
-            font-size: 40px;
-            transform: translate(-50%, -50%);
-            transition: transform 0.1s linear; /* Smooth movement */
-            user-select: none;
+            position: absolute; font-size: 40px; transform: translate(-50%, -50%);
+            transition: transform 0.1s linear, opacity 0.2s; 
+            user-select: none; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 5;
         }
-
-        /* Rat needs to be clickable */
         .rat { font-size: 50px; z-index: 5; cursor: crosshair; }
-        
-        /* Cat is automated */
         .cat { font-size: 50px; z-index: 6; pointer-events: none; }
 
+        /* BARS */
+        .bars-container { position: absolute; top: -20px; display: flex; flex-direction: column; gap: 2px; pointer-events: none; }
+        .bar-bg { width: 40px; height: 4px; background: #000; border: 1px solid #fff; }
+        .hunger-fill { width: 100%; height: 100%; background-color: #00ff00; transition: width 0.2s; }
+        .spawn-fill { width: 0%; height: 100%; background-color: #00ffff; transition: width 0.1s linear; }
+
+        .expiring { animation: blink 0.5s infinite; color: #ff00ff; }
+        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
+
+        /* SCREENS */
         .screen {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.9);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            z-index: 20;
-            text-align: center;
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.9); display: flex; flex-direction: column;
+            align-items: center; justify-content: center; z-index: 100; text-align: center;
         }
-
         button {
-            background: var(--text-color);
-            color: #000;
-            border: 4px solid #fff;
-            padding: 15px 20px;
-            font-family: var(--ui-font);
-            font-size: 16px;
-            margin-top: 20px;
-            cursor: pointer;
-            text-transform: uppercase;
+            background: var(--text-color); color: #000; border: 4px solid #fff;
+            padding: 15px 20px; font-family: var(--ui-font); font-size: 16px;
+            margin-top: 20px; cursor: pointer; text-transform: uppercase;
         }
-
         .hidden { display: none !important; }
-
+        
         .floater {
-            position: absolute;
-            font-weight: bold;
-            pointer-events: none;
-            animation: floatUp 1s forwards;
-            font-family: var(--ui-font);
-            z-index: 100;
-            text-shadow: 2px 2px 0 #000;
+            position: absolute; font-weight: bold; pointer-events: none;
+            animation: floatUp 1s forwards; font-family: var(--ui-font);
+            z-index: 100; text-shadow: 2px 2px 0 #000;
         }
-        @keyframes floatUp {
-            0% { opacity: 1; transform: translateY(0); }
-            100% { opacity: 0; transform: translateY(-50px); }
-        }
-
+        @keyframes floatUp { 0% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-50px); } }
         .shake { animation: shake 0.5s; }
-        @keyframes shake {
-            0% { transform: translate(1px, 1px) rotate(0deg); }
-            50% { transform: translate(-1px, 2px) rotate(-1deg); }
-            100% { transform: translate(1px, -2px) rotate(-1deg); }
-        }
+        @keyframes shake { 0% { transform: translate(1px, 1px) rotate(0deg); } 50% { transform: translate(-1px, 2px) rotate(-1deg); } 100% { transform: translate(1px, -2px) rotate(-1deg); } }
     </style>
 </head>
 <body>
 
     <div id="ui-layer">
-        <div class="stat-box">SCORE: <span id="score-display">0</span></div>
+        <div class="stat-box" style="color: #888;">VS</div>
         <div class="stat-box" style="text-align: right; color: #ffcc00;">NET: <span id="net-display">15</span></div>
     </div>
+
+    <div id="tug-container">
+        <div id="center-marker"></div>
+        <div id="tug-bar"></div>
+    </div>
+    <div id="timer-display">TIME: 0.0s</div>
 
     <div id="inventory-container">
         <div id="slot-0" class="inv-slot" onclick="deployCat(0)"></div>
@@ -161,162 +141,384 @@
         <h1 style="color: var(--text-color); margin-bottom: 10px;">AVA'S RAT TRAP</h1>
         <p style="font-size: 12px; line-height: 1.6;">
             TAP RATS (+1 Score)<br>
-            AVOID BOMBS (-3 Net)<br>
+            AVOID BOMBS<br>
             <br>
-            <span style="color:#ffcc00">NEW:</span> Catch 10 rats to earn a CAT!<br>
-            Cats chase rats but die to bombs.
+            <span style="color:#00ffff">INFESTATION:</span><br>
+            Rats multiply AND tunnel.<br>
+            Good luck.
         </p>
         <button onclick="startGame()">START GAME</button>
     </div>
 
-    <div id="game-over-screen" class="screen hidden">
-        <h1 style="color: var(--accent-color);">NET BROKEN!</h1>
-        <p>FINAL SCORE: <span id="final-score">0</span></p>
+    <div id="win-screen" class="screen hidden">
+        <h1 style="color: #00ff00;">VICTORY!</h1>
+        <p>TIME: <span id="win-time">0</span>s</p>
+        <button onclick="startGame()">PLAY AGAIN</button>
+    </div>
+
+    <div id="lose-screen" class="screen hidden">
+        <h1 style="color: #ff3333;">DEFEATED!</h1>
+        <p id="lose-reason">RATS TOOK OVER</p>
         <button onclick="startGame()">TRY AGAIN</button>
     </div>
 
     <div id="game-area"></div>
 
     <script>
+        const GAME_CONFIG = {
+            ASSETS: { RAT: '🐀', CAT: '🐯', CHEESE: '🧀', BOMB: '💣', SPLAT: '🦠', EXPLOSION: '💥' },
+            PLAYER: { START_HEALTH: 15, MAX_CATS_INVENTORY: 3, POINTS_PER_CAT: 10 },
+            TUG_OF_WAR: { START: 50, WIN: 100, LOSE: 0, PLAYER_PUSH: 2, RAT_PUSH: 4 },
+            RAT: {
+                MAX_ON_SCREEN: 30, START_SPEED: 2.0, SPEED_INCREASE: 0.0, CHEESE_BOOST: 1.0,    
+                MAX_SPEED: 12.0, MIN_SPEED: 1.0, SIZE: 50, START_HUNGER: 10, MAX_HUNGER: 10,
+                BUNKER_HUNGER_MULTI: 0.5, VISION_RANGE: 300, BASE_FEAR: 1.5, BASE_HUNGER_PULL: 0.5, 
+                NEST_MULTIPLY_TIME: 5000, TUNNEL_CHANCE: 0.5 
+            },
+            CAT: {
+                MAX_ON_SCREEN: 1, START_SPEED: 1.5, SPEED_INCREASE: 0.5, MAX_SPEED: 8.0, MIN_SPEED: 0.5,
+                SIZE: 50, START_HUNGER: 10, MAX_HUNGER: 10, HUNGER_SPEED_MULTI: 0.5
+            },
+            ITEMS: {
+                BOMB_DAMAGE: 3, MISS_DAMAGE: 1, CHEESE_DAMAGE: 1, SPLAT_DAMAGE: 1,
+                SPLAT_SLOW: 1.0, DESPAWN_TIME: 6000, WARN_TIME: 4000
+            },
+            SPAWN: {
+                HAZARD_INTERVAL: 2500, BOMB_WEIGHT: 60, SPLAT_WEIGHT: 40,
+                CHEESE_BASE_INTERVAL: 1000, CHEESE_MIN_INTERVAL: 200, CHEESE_CATCHUP_MS: 15 
+            },
+            HUNGER: { DECAY_RATE: 1000, FOOD_RESTORE: 2 },
+            BUNKERS: [
+                { id: 'alpha', radius: 100, capacity: 10, label: "ALPHA" },
+                { id: 'beta', radius: 70, capacity: 5, label: "BETA" },
+                { id: 'gamma', radius: 50, capacity: 2, label: "GAMMA" }
+            ]
+        };
+
         // --- GAME VARIABLES ---
-        let score = 0;
-        let netHealth = 15;
-        let ratSpeed = 2; 
+        let tugValue = 50; 
+        let progressSinceLastCat = 0;
+        let netHealth = GAME_CONFIG.PLAYER.START_HEALTH;
         let gameActive = false;
+        let totalGameTime = 0;
         
-        // Inventory
+        let cheeseTimer = 0;
+        let hazardTimer = 0;
+        let hungerTimer = 0;
+
         let catsInInventory = 0;
-        const MAX_CATS = 3;
-        let deployedCats = []; // Array to store active cats on screen
+        let deployedCats = [];
+        let activeRats = []; 
+        let activeBunkers = [];
         
-        const RAT_SIZE = 50;
-        const CAT_SIZE = 50;
-        const ENTITY_SIZE = 40;
+        const ENTITY_SIZE = 40; 
         
-        // DOM Elements
         const gameArea = document.getElementById('game-area');
-        const scoreDisplay = document.getElementById('score-display');
         const netDisplay = document.getElementById('net-display');
+        const tugBar = document.getElementById('tug-bar');
+        const timerDisplay = document.getElementById('timer-display');
+        
         const startScreen = document.getElementById('start-screen');
-        const gameOverScreen = document.getElementById('game-over-screen');
-        const finalScoreDisplay = document.getElementById('final-score');
+        const winScreen = document.getElementById('win-screen');
+        const loseScreen = document.getElementById('lose-screen');
+        
+        const winTimeDisplay = document.getElementById('win-time');
+        const loseReasonDisplay = document.getElementById('lose-reason');
+        
         const slots = [document.getElementById('slot-0'), document.getElementById('slot-1'), document.getElementById('slot-2')];
 
-        const rat = { x: 0, y: 0, element: null, targetX: 0, targetY: 0 };
+        // --- UTILITY FUNCTIONS ---
 
-        // --- GAME FUNCTIONS ---
+        function showFloatingText(x, y, text, color) {
+            const el = document.createElement('div');
+            el.classList.add('floater');
+            el.style.left = x + 'px'; el.style.top = y + 'px'; el.style.color = color; el.innerText = text;
+            document.body.appendChild(el);
+            setTimeout(() => el.remove(), 1000);
+        }
+
+        function updateBarVisuals(barElement, current, max, color) {
+            if (!barElement) return;
+            const pct = Math.max(0, (current / max) * 100);
+            barElement.style.width = pct + '%';
+            if (pct > 50) barElement.style.backgroundColor = color;
+            else if (pct > 25) barElement.style.backgroundColor = '#ffff00';
+            else barElement.style.backgroundColor = '#ff0000';
+        }
+
+        function getBunkerAt(x, y) {
+            for (let b of activeBunkers) {
+                const dx = x - b.x, dy = y - b.y;
+                if (Math.sqrt(dx*dx + dy*dy) < b.radius) return b;
+            }
+            return null;
+        }
+
+        function getRandomBunker(excludeBunker) {
+            const available = activeBunkers.filter(b => b !== excludeBunker);
+            if (available.length === 0) return excludeBunker; 
+            return available[Math.floor(Math.random() * available.length)];
+        }
+
+        function killRat(rat) {
+            rat.dead = true; 
+            if (rat.element) rat.element.style.display = 'none'; 
+        }
+
+        function cleanUpDeadEntities() {
+            for (let i = activeRats.length - 1; i >= 0; i--) {
+                if (activeRats[i].dead) {
+                    if(activeRats[i].element) activeRats[i].element.remove();
+                    activeRats.splice(i, 1);
+                }
+            }
+            for (let i = deployedCats.length - 1; i >= 0; i--) {
+                if (deployedCats[i].dead) {
+                    if(deployedCats[i].element) deployedCats[i].element.remove();
+                    deployedCats.splice(i, 1);
+                }
+            }
+            if (activeRats.length === 0 && gameActive) createRat();
+        }
+
+        // --- CORE FUNCTIONS ---
 
         function startGame() {
-            score = 0;
-            netHealth = 15;
-            ratSpeed = 2;
+            tugValue = GAME_CONFIG.TUG_OF_WAR.START;
+            netHealth = GAME_CONFIG.PLAYER.START_HEALTH;
+            progressSinceLastCat = 0;
+            totalGameTime = 0;
             catsInInventory = 0;
-            deployedCats = []; // Clear active cats logic
+            deployedCats = []; 
+            activeRats = []; 
+            cheeseTimer = 0;
+            hazardTimer = 0;
+            hungerTimer = 0;
             gameActive = true;
             
-            gameArea.innerHTML = '';
+            const entities = document.querySelectorAll('.entity');
+            entities.forEach(e => e.remove());
+            const oldBunkers = document.querySelectorAll('.bunker');
+            oldBunkers.forEach(e => e.remove());
+
+            setupBunkers();
             updateUI();
             updateInventoryUI();
             
             startScreen.classList.add('hidden');
-            gameOverScreen.classList.add('hidden');
+            winScreen.classList.add('hidden');
+            loseScreen.classList.add('hidden');
 
-            createRat();
+            createRat(); 
             lastTime = performance.now();
             requestAnimationFrame(gameLoop);
         }
 
-        function createRat() {
-            // Remove old rat if exists
-            const oldRat = document.querySelector('.rat');
-            if(oldRat) oldRat.remove();
+        function updateTugOfWar(amount) {
+            tugValue += amount;
+            tugValue = Math.max(0, Math.min(100, tugValue));
+            
+            if (amount > 0) {
+                progressSinceLastCat += amount;
+                if (progressSinceLastCat >= (GAME_CONFIG.PLAYER.POINTS_PER_CAT * GAME_CONFIG.TUG_OF_WAR.PLAYER_PUSH)) {
+                    if (catsInInventory < GAME_CONFIG.PLAYER.MAX_CATS_INVENTORY) {
+                        catsInInventory++;
+                        progressSinceLastCat = 0;
+                        showFloatingText(window.innerWidth/2, window.innerHeight - 100, "CAT EARNED!", "#ffcc00");
+                        updateInventoryUI();
+                    }
+                }
+            }
+            updateUI();
+            if (tugValue >= GAME_CONFIG.TUG_OF_WAR.WIN) gameWin();
+            else if (tugValue <= GAME_CONFIG.TUG_OF_WAR.LOSE) gameLose("OVERRUN BY RATS");
+        }
+
+        function setupBunkers() {
+            activeBunkers = [];
+            const w = window.innerWidth;
+            const h = window.innerHeight;
+            const positions = [
+                { x: w * 0.2, y: h * 0.25 }, { x: w * 0.8, y: h * 0.25 }, { x: w * 0.5, y: h * 0.75 } 
+            ];
+
+            GAME_CONFIG.BUNKERS.forEach((def, index) => {
+                const pos = positions[index];
+                const el = document.createElement('div');
+                el.className = 'bunker';
+                el.style.width = (def.radius * 2) + 'px';
+                el.style.height = (def.radius * 2) + 'px';
+                el.style.left = pos.x + 'px';
+                el.style.top = pos.y + 'px';
+                el.innerHTML = `<span>${def.label}</span><div class="bunker-count">0/${def.capacity}</div>`;
+                gameArea.appendChild(el);
+
+                activeBunkers.push({
+                    x: pos.x, y: pos.y, radius: def.radius,
+                    capacity: def.capacity, element: el,
+                    countElement: el.querySelector('.bunker-count'), occupants: 0
+                });
+            });
+        }
+
+        function createRat(startX, startY) {
+            if (activeRats.length >= GAME_CONFIG.RAT.MAX_ON_SCREEN) return;
 
             const ratEl = document.createElement('div');
             ratEl.classList.add('entity', 'rat');
-            ratEl.innerText = '🐀';
-            ratEl.addEventListener('click', (e) => { e.stopPropagation(); playerCatchRat(e); });
-            ratEl.addEventListener('touchstart', (e) => { e.stopPropagation(); e.preventDefault(); playerCatchRat(e.touches[0]); });
+            const emojiSpan = document.createElement('span');
+            emojiSpan.innerText = GAME_CONFIG.ASSETS.RAT; 
+            ratEl.appendChild(emojiSpan);
+
+            const barsDiv = document.createElement('div');
+            barsDiv.className = 'bars-container';
+            const hBarBg = document.createElement('div');
+            hBarBg.className = 'bar-bg';
+            const hBarFill = document.createElement('div');
+            hBarFill.className = 'hunger-fill';
+            hBarBg.appendChild(hBarFill);
+            barsDiv.appendChild(hBarBg);
+            const sBarBg = document.createElement('div');
+            sBarBg.className = 'bar-bg';
+            const sBarFill = document.createElement('div');
+            sBarFill.className = 'spawn-fill';
+            sBarBg.appendChild(sBarFill);
+            barsDiv.appendChild(sBarBg);
+            ratEl.appendChild(barsDiv);
+
             gameArea.appendChild(ratEl);
-            rat.element = ratEl;
             
-            // Random start pos
-            rat.x = Math.random() * (window.innerWidth - RAT_SIZE);
-            rat.y = Math.random() * (window.innerHeight - RAT_SIZE);
-            setNewRatTarget();
-        }
-
-        // Triggered by Player Click
-        function playerCatchRat(e) {
-            if (!gameActive) return;
-            handleSuccessfulCatch(e.clientX, e.clientY);
-        }
-
-        // Shared logic for Player OR Cat catching the rat
-        function handleSuccessfulCatch(x, y) {
-            score++;
-            ratSpeed += 0.2;
-            showFloatingText(x, y, "+1", "#33ff00");
-            
-            // Inventory Logic: Every 10 points, get a cat
-            if (score > 0 && score % 10 === 0) {
-                if (catsInInventory < MAX_CATS) {
-                    catsInInventory++;
-                    showFloatingText(window.innerWidth/2, window.innerHeight - 100, "CAT EARNED!", "#ffcc00");
-                    updateInventoryUI();
+            let x = startX, y = startY;
+            if (x === undefined) {
+                let safe = false, tries = 0;
+                while(!safe && tries < 10) {
+                    x = Math.random() * (window.innerWidth - GAME_CONFIG.RAT.SIZE);
+                    y = Math.random() * (window.innerHeight - GAME_CONFIG.RAT.SIZE);
+                    const bunk = getBunkerAt(x, y);
+                    if (!bunk || bunk.occupants < bunk.capacity) safe = true;
+                    tries++;
                 }
             }
 
-            handleSpawns();
+            const ratObj = {
+                x: x, y: y, element: ratEl, 
+                hunger: GAME_CONFIG.RAT.START_HUNGER, speed: GAME_CONFIG.RAT.START_SPEED, 
+                hungerBar: hBarFill, spawnBar: sBarFill,
+                dirX: (Math.random() * 2) - 1, dirY: (Math.random() * 2) - 1,
+                nestTimer: 0, currentBunker: null, dead: false
+            };
             
-            // Move rat instantly
-            rat.x = Math.random() * (window.innerWidth - RAT_SIZE);
-            rat.y = Math.random() * (window.innerHeight - RAT_SIZE);
-            setNewRatTarget();
-            
-            updateUI();
+            ratEl.addEventListener('click', (e) => { 
+                e.stopPropagation(); 
+                attemptCatchRat(ratObj, e.clientX, e.clientY);
+            });
+            ratEl.addEventListener('touchstart', (e) => { 
+                e.stopPropagation(); e.preventDefault(); 
+                attemptCatchRat(ratObj, e.touches[0].clientX, e.touches[0].clientY);
+            });
+
+            activeRats.push(ratObj);
+            updateBarVisuals(ratObj.hungerBar, ratObj.hunger, GAME_CONFIG.RAT.MAX_HUNGER, '#00ff00');
         }
 
-        function handleSpawns() {
-            if (Math.random() > 0.6) spawnEntity('🧀', 'cheese');
-            let bombChance = 0.2 + (score * 0.01);
-            if (Math.random() < bombChance) spawnEntity('💣', 'bomb');
+        function attemptCatchRat(ratObj, x, y) {
+            if (!gameActive || ratObj.dead) return;
+            if (ratObj.currentBunker) {
+                showFloatingText(x, y, "SAFE!", "#888");
+                damageNet(1, x, y); 
+                return; 
+            }
+            killRat(ratObj);
+            handleSuccessfulCatch(x, y);
+        }
+
+        function handleSuccessfulCatch(x, y) {
+            updateTugOfWar(GAME_CONFIG.TUG_OF_WAR.PLAYER_PUSH);
+            showFloatingText(x, y, "CAUGHT!", "#33ff00");
+        }
+
+        function updateBunkers() {
+            activeBunkers.forEach(b => b.occupants = 0);
+            activeRats.forEach(r => {
+                if (!r.dead && r.currentBunker) r.currentBunker.occupants++;
+            });
+            activeBunkers.forEach(b => {
+                b.countElement.innerText = `${b.occupants}/${b.capacity}`;
+                if (b.occupants >= b.capacity) b.element.classList.add('full');
+                else b.element.classList.remove('full');
+            });
+        }
+
+        function handleSpawning(dt) {
+            let advantage = Math.max(0, tugValue - 50); 
+            let speedUp = advantage * GAME_CONFIG.SPAWN.CHEESE_CATCHUP_MS;
+            let currentCheeseInterval = Math.max(GAME_CONFIG.SPAWN.CHEESE_MIN_INTERVAL, GAME_CONFIG.SPAWN.CHEESE_BASE_INTERVAL - speedUp);
+
+            cheeseTimer += dt;
+            if (cheeseTimer > currentCheeseInterval) {
+                cheeseTimer = 0;
+                spawnEntity(GAME_CONFIG.ASSETS.CHEESE, 'cheese');
+            }
+
+            hazardTimer += dt;
+            if (hazardTimer > GAME_CONFIG.SPAWN.HAZARD_INTERVAL) {
+                hazardTimer = 0;
+                let bombWeight = GAME_CONFIG.SPAWN.BOMB_WEIGHT;
+                let splatWeight = GAME_CONFIG.SPAWN.SPLAT_WEIGHT;
+                let total = bombWeight + splatWeight;
+                let roll = Math.random() * total;
+                if (roll < bombWeight) spawnEntity(GAME_CONFIG.ASSETS.BOMB, 'bomb');
+                else spawnEntity(GAME_CONFIG.ASSETS.SPLAT, 'splat');
+            }
         }
 
         function spawnEntity(emoji, type) {
+            let x, y, safe = false, tries = 0;
+            while(!safe && tries < 20) {
+                x = Math.random() * (window.innerWidth - ENTITY_SIZE);
+                y = Math.random() * (window.innerHeight - ENTITY_SIZE);
+                if (!getBunkerAt(x, y)) safe = true;
+                tries++;
+            }
+
             const el = document.createElement('div');
             el.classList.add('entity');
             el.innerText = emoji;
             el.dataset.type = type;
-            el.style.left = (Math.random() * (window.innerWidth - ENTITY_SIZE)) + 'px';
-            el.style.top = (Math.random() * (window.innerHeight - ENTITY_SIZE)) + 'px';
+            el.style.left = x + 'px';
+            el.style.top = y + 'px';
 
             const hitHandler = (e) => {
                 e.stopPropagation();
                 if(e.type === 'touchstart') e.preventDefault();
-                if (type === 'bomb') damageNet(3, e.clientX || e.touches[0].clientX, e.clientY || e.touches[0].clientY);
-                else if (type === 'cheese') damageNet(1, e.clientX || e.touches[0].clientX, e.clientY || e.touches[0].clientY);
+                if (type === 'bomb') damageNet(GAME_CONFIG.ITEMS.BOMB_DAMAGE, e.clientX, e.clientY);
+                else if (type === 'cheese') damageNet(GAME_CONFIG.ITEMS.CHEESE_DAMAGE, e.clientX, e.clientY);
+                else if (type === 'splat') damageNet(GAME_CONFIG.ITEMS.SPLAT_DAMAGE, e.clientX, e.clientY);
                 el.remove();
             };
             el.addEventListener('click', hitHandler);
             el.addEventListener('touchstart', hitHandler);
             gameArea.appendChild(el);
+
+            setTimeout(() => { if (el.parentElement) el.classList.add('expiring'); }, GAME_CONFIG.ITEMS.WARN_TIME);
+            setTimeout(() => { if (el.parentElement) el.remove(); }, GAME_CONFIG.ITEMS.DESPAWN_TIME);
         }
 
         function damageNet(amount, x, y) {
+            if(!x) x = window.innerWidth/2;
+            if(!y) y = window.innerHeight/2;
             netHealth -= amount;
             showFloatingText(x, y, `-${amount}`, "#ff3333");
             document.body.classList.add('shake');
             setTimeout(() => document.body.classList.remove('shake'), 500);
-            if (netHealth <= 0) gameOver();
+            if (netHealth <= 0) gameLose("NET BROKEN");
             updateUI();
         }
-
-        // --- CAT LOGIC ---
 
         function updateInventoryUI() {
             slots.forEach((slot, index) => {
                 if (index < catsInInventory) {
-                    slot.innerText = '🐯';
+                    slot.innerText = GAME_CONFIG.ASSETS.CAT;
                     slot.classList.add('filled');
                 } else {
                     slot.innerText = '';
@@ -327,80 +529,37 @@
 
         function deployCat(index) {
             if (!gameActive || index >= catsInInventory) return;
-            
-            // Remove from inventory
+            if (deployedCats.length >= GAME_CONFIG.CAT.MAX_ON_SCREEN) {
+                showFloatingText(window.innerWidth/2, window.innerHeight - 100, "MAX CATS!", "#ff0000");
+                return;
+            }
             catsInInventory--;
             updateInventoryUI();
 
-            // Create Cat Entity
             const catEl = document.createElement('div');
             catEl.classList.add('entity', 'cat');
-            catEl.innerText = '🐯';
+            const emojiSpan = document.createElement('span');
+            emojiSpan.innerText = GAME_CONFIG.ASSETS.CAT;
+            catEl.appendChild(emojiSpan);
+            const barsDiv = document.createElement('div');
+            barsDiv.className = 'bars-container';
+            const hBarBg = document.createElement('div');
+            hBarBg.className = 'bar-bg';
+            const hBarFill = document.createElement('div');
+            hBarFill.className = 'hunger-fill';
+            hBarBg.appendChild(hBarFill);
+            barsDiv.appendChild(hBarBg);
+            catEl.appendChild(barsDiv);
             gameArea.appendChild(catEl);
 
-            // Add to active cats array
             deployedCats.push({
-                x: window.innerWidth / 2, // Spawn center
-                y: window.innerHeight - 100, // Near bottom
-                element: catEl,
-                speed: 1.5 // Starting speed
+                x: window.innerWidth / 2, y: window.innerHeight / 2,
+                element: catEl, speed: GAME_CONFIG.CAT.START_SPEED,
+                hunger: GAME_CONFIG.CAT.START_HUNGER, hungerBar: hBarFill, dead: false
             });
         }
 
-        function moveCats() {
-            // Loop backwards so we can remove dead cats easily
-            for (let i = deployedCats.length - 1; i >= 0; i--) {
-                let cat = deployedCats[i];
-
-                // Calculate direction to Rat
-                const dx = rat.x - cat.x;
-                const dy = rat.y - cat.y;
-                const dist = Math.sqrt(dx*dx + dy*dy);
-
-                // Move cat
-                if (dist > 5) {
-                    cat.x += (dx / dist) * cat.speed;
-                    cat.y += (dy / dist) * cat.speed;
-                }
-
-                // Update DOM
-                cat.element.style.left = cat.x + 'px';
-                cat.element.style.top = cat.y + 'px';
-                // Flip sprite
-                cat.element.style.transform = `translate(-50%, -50%) scaleX(${dx > 0 ? -1 : 1})`;
-
-                // 1. Check Collision with Rat
-                if (dist < (RAT_SIZE / 2 + CAT_SIZE / 2)) {
-                    // Cat caught rat!
-                    cat.speed += 1.0; // Cat gets faster
-                    showFloatingText(cat.x, cat.y, "NOM!", "#ffcc00");
-                    handleSuccessfulCatch(cat.x, cat.y);
-                }
-
-                // 2. Check Collision with Bombs
-                const bombs = document.querySelectorAll('[data-type="bomb"]');
-                let catDied = false;
-                bombs.forEach(bomb => {
-                    const bombRect = bomb.getBoundingClientRect();
-                    const catRect = cat.element.getBoundingClientRect();
-
-                    if (catRect.left < bombRect.right && catRect.right > bombRect.left &&
-                        catRect.top < bombRect.bottom && catRect.bottom > bombRect.top) {
-                        
-                        // Cat hit bomb
-                        bomb.remove();
-                        cat.element.innerText = '💥'; // Explosion effect
-                        setTimeout(() => cat.element.remove(), 200);
-                        deployedCats.splice(i, 1); // Remove from logic
-                        showFloatingText(cat.x, cat.y, "RIP CAT", "#ff3333");
-                        catDied = true;
-                    }
-                });
-            }
-        }
-
-
-        // --- MAIN LOOP ---
+        // --- GAME LOOP ---
 
         let lastTime = 0;
         function gameLoop(timestamp) {
@@ -408,85 +567,313 @@
             const deltaTime = timestamp - lastTime;
             lastTime = timestamp;
 
-            moveRat();
-            moveCats(); // New logic
+            totalGameTime += deltaTime;
+            timerDisplay.innerText = "TIME: " + (totalGameTime / 1000).toFixed(1) + "s";
+
+            handleSpawning(deltaTime);
+            hungerTimer += deltaTime;
+            if (hungerTimer >= GAME_CONFIG.HUNGER.DECAY_RATE) {
+                applyHungerTick();
+                hungerTimer = 0;
+            }
+
+            activeBunkers.forEach(b => b.occupants = 0);
+            activeRats.forEach(r => { if(!r.dead && r.currentBunker) r.currentBunker.occupants++; });
+
+            moveRatsAI(deltaTime);
+            updateBunkers(); 
+            moveCats();
             checkRatCollisions();
+            cleanUpDeadEntities();
+
             requestAnimationFrame(gameLoop);
         }
 
-        function setNewRatTarget() {
-            const cheeseElements = document.querySelectorAll('[data-type="cheese"]');
-            if (cheeseElements.length > 0 && Math.random() > 0.5) {
-                const cheese = cheeseElements[Math.floor(Math.random() * cheeseElements.length)];
-                rat.targetX = parseFloat(cheese.style.left);
-                rat.targetY = parseFloat(cheese.style.top);
-            } else {
-                rat.targetX = Math.random() * (window.innerWidth - RAT_SIZE);
-                rat.targetY = Math.random() * (window.innerHeight - RAT_SIZE);
-            }
-        }
-
-        function moveRat() {
-            if (!rat.element) return;
-            const dx = rat.targetX - rat.x;
-            const dy = rat.targetY - rat.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-
-            if (distance < 10) {
-                setNewRatTarget();
-            } else {
-                rat.x += (dx / distance) * ratSpeed;
-                rat.y += (dy / distance) * ratSpeed;
-            }
-            rat.element.style.left = rat.x + 'px';
-            rat.element.style.top = rat.y + 'px';
-            rat.element.style.transform = `translate(-50%, -50%) scaleX(${dx > 0 ? -1 : 1})`;
-        }
-
-        function checkRatCollisions() {
-            const cheeses = document.querySelectorAll('[data-type="cheese"]');
-            const ratRect = rat.element.getBoundingClientRect();
-            cheeses.forEach(cheese => {
-                const cheeseRect = cheese.getBoundingClientRect();
-                if (ratRect.left < cheeseRect.right && ratRect.right > cheeseRect.left &&
-                    ratRect.top < cheeseRect.bottom && ratRect.bottom > cheeseRect.top) {
-                    cheese.remove();
-                    ratSpeed += 1;
-                    showFloatingText(rat.x, rat.y, "GULP!", "#ffff00");
+        function applyHungerTick() {
+            activeRats.forEach(r => {
+                if(r.dead) return;
+                let decay = r.currentBunker ? GAME_CONFIG.RAT.BUNKER_HUNGER_MULTI : 1; 
+                r.hunger -= decay;
+                updateBarVisuals(r.hungerBar, r.hunger, GAME_CONFIG.RAT.MAX_HUNGER, '#00ff00');
+                if (r.hunger <= 0) {
+                    showFloatingText(r.x, r.y, "STARVED!", "#888");
+                    killRat(r);
+                }
+            });
+            deployedCats.forEach(cat => {
+                if(cat.dead) return;
+                cat.hunger--;
+                updateBarVisuals(cat.hungerBar, cat.hunger, GAME_CONFIG.CAT.MAX_HUNGER, '#00ff00');
+                if (cat.hunger <= 0) {
+                    showFloatingText(window.innerWidth/2, window.innerHeight/2, "CAT LEFT!", "#ffcc00");
+                    cat.dead = true;
+                    if(cat.element) cat.element.style.display = 'none';
                 }
             });
         }
 
-        gameArea.addEventListener('click', (e) => damageNet(1, e.clientX, e.clientY));
+        function moveRatsAI(dt) {
+            activeRats.forEach(rat => {
+                if (rat.dead || !rat.element) return;
+
+                if (rat.currentBunker) {
+                    rat.element.style.opacity = '0';
+                    rat.nestTimer += dt;
+                    const spawnPct = (rat.nestTimer / GAME_CONFIG.RAT.NEST_MULTIPLY_TIME) * 100;
+                    if(rat.spawnBar) rat.spawnBar.style.width = spawnPct + '%';
+
+                    if (rat.nestTimer > GAME_CONFIG.RAT.NEST_MULTIPLY_TIME) {
+                        rat.nestTimer = 0;
+                        if(rat.spawnBar) rat.spawnBar.style.width = '0%';
+                        
+                        // 1. BREED CHECK
+                        if (activeRats.length < GAME_CONFIG.RAT.MAX_ON_SCREEN) {
+                            // Ejection spawn on perimeter
+                            const angle = Math.random() * Math.PI * 2;
+                            const bx = rat.currentBunker.x + Math.cos(angle) * (rat.currentBunker.radius + 10);
+                            const by = rat.currentBunker.y + Math.sin(angle) * (rat.currentBunker.radius + 10);
+                            createRat(bx, by); 
+                            showFloatingText(rat.currentBunker.x, rat.currentBunker.y, "MULTIPLIED!", "#00ffff");
+                        } else {
+                            showFloatingText(rat.currentBunker.x, rat.currentBunker.y, "MAX RATS!", "#ff0000");
+                        }
+
+                        // 2. TUNNEL CHECK
+                        if (Math.random() < GAME_CONFIG.RAT.TUNNEL_CHANCE) {
+                            const exitBunker = getRandomBunker(rat.currentBunker);
+                            if(exitBunker) {
+                                const angle = Math.random() * Math.PI * 2;
+                                rat.x = exitBunker.x + Math.cos(angle) * (exitBunker.radius + 10);
+                                rat.y = exitBunker.y + Math.sin(angle) * (exitBunker.radius + 10);
+                                rat.currentBunker = null; 
+                                rat.element.style.opacity = '1';
+                                showFloatingText(exitBunker.x, exitBunker.y, "TUNNEL!", "#ff00ff");
+                            }
+                        }
+                    }
+                } else {
+                    rat.element.style.opacity = '1';
+                    rat.nestTimer = 0;
+                    if(rat.spawnBar) rat.spawnBar.style.width = '0%';
+                }
+
+                let moveX = 0;
+                let moveY = 0;
+                const isHungry = rat.hunger < 5;
+                const cheesePullStrength = isHungry ? 2.0 : 0.5;
+
+                const cheeseElements = document.querySelectorAll('[data-type="cheese"]');
+                let nearestCheese = null, minCheeseDist = Infinity;
+                cheeseElements.forEach(cheese => {
+                    const cx = parseFloat(cheese.style.left);
+                    const cy = parseFloat(cheese.style.top);
+                    const d = Math.sqrt((cx - rat.x)**2 + (cy - rat.y)**2);
+                    if (d < minCheeseDist) { minCheeseDist = d; nearestCheese = {x: cx, y: cy}; }
+                });
+                if (nearestCheese && isHungry) {
+                    moveX += ((nearestCheese.x - rat.x) / minCheeseDist) * cheesePullStrength;
+                    moveY += ((nearestCheese.y - rat.y) / minCheeseDist) * cheesePullStrength;
+                }
+
+                if (!isHungry) {
+                    let nearestBunker = null, minBunkerDist = Infinity;
+                    activeBunkers.forEach(b => {
+                        if (b.occupants < b.capacity || rat.currentBunker === b) {
+                            const d = Math.sqrt((b.x - rat.x)**2 + (b.y - rat.y)**2);
+                            if (d < minBunkerDist) { minBunkerDist = d; nearestBunker = b; }
+                        }
+                    });
+                    if (nearestBunker) {
+                        moveX += ((nearestBunker.x - rat.x) / minBunkerDist) * 1.5;
+                        moveY += ((nearestBunker.y - rat.y) / minBunkerDist) * 1.5;
+                    }
+                }
+
+                deployedCats.forEach(cat => {
+                    if (cat.dead) return;
+                    const dx = rat.x - cat.x, dy = rat.y - cat.y;
+                    const dist = Math.sqrt(dx*dx + dy*dy);
+                    if (dist < GAME_CONFIG.RAT.VISION_RANGE) {
+                        const strength = (GAME_CONFIG.RAT.VISION_RANGE - dist) / GAME_CONFIG.RAT.VISION_RANGE;
+                        moveX += (dx / dist) * strength * GAME_CONFIG.RAT.BASE_FEAR;
+                        moveY += (dy / dist) * strength * GAME_CONFIG.RAT.BASE_FEAR;
+                    }
+                });
+
+                if (Math.random() < 0.05) { rat.dirX += (Math.random() - 0.5); rat.dirY += (Math.random() - 0.5); }
+                moveX += rat.dirX * 0.5; moveY += rat.dirY * 0.5;
+
+                const finalDist = Math.sqrt(moveX*moveX + moveY*moveY);
+                if (finalDist > 0) {
+                    moveX = (moveX / finalDist) * rat.speed;
+                    moveY = (moveY / finalDist) * rat.speed;
+                }
+
+                let nextX = rat.x + moveX;
+                let nextY = rat.y + moveY;
+
+                activeBunkers.forEach(b => {
+                    const dist = Math.sqrt((nextX - b.x)**2 + (nextY - b.y)**2);
+                    if (dist < b.radius) {
+                        if (rat.currentBunker !== b) {
+                            if (b.occupants >= b.capacity) {
+                                const angle = Math.atan2(nextY - b.y, nextX - b.x);
+                                nextX = b.x + Math.cos(angle) * (b.radius + 2);
+                                nextY = b.y + Math.sin(angle) * (b.radius + 2);
+                                rat.dirX *= -1; rat.dirY *= -1;
+                            } else {
+                                b.occupants++; rat.currentBunker = b;
+                            }
+                        }
+                    } else {
+                        if (rat.currentBunker === b) {
+                            rat.currentBunker = null; b.occupants--;
+                        }
+                    }
+                });
+
+                rat.x = nextX; rat.y = nextY;
+                if (rat.x < 0 || rat.x > window.innerWidth - 50) { rat.x = Math.max(0, Math.min(rat.x, window.innerWidth-50)); rat.dirX *= -1; }
+                if (rat.y < 0 || rat.y > window.innerHeight - 50) { rat.y = Math.max(0, Math.min(rat.y, window.innerHeight-50)); rat.dirY *= -1; }
+
+                rat.element.style.left = rat.x + 'px';
+                rat.element.style.top = rat.y + 'px';
+                
+                if (Math.abs(moveX) > 0.1) {
+                    const emoji = rat.element.children[0];
+                    if(emoji) emoji.style.transform = `scaleX(${moveX > 0 ? -1 : 1})`;
+                }
+            });
+        }
+
+        function moveCats() {
+            deployedCats.forEach(cat => {
+                if(cat.dead || !cat.element) return;
+
+                let hungerRatio = cat.hunger / GAME_CONFIG.CAT.MAX_HUNGER;
+                let currentBoost = 1 + ((1 - hungerRatio) * GAME_CONFIG.CAT.HUNGER_SPEED_MULTI);
+                let effectiveSpeed = cat.speed * currentBoost;
+
+                let nearestRat = null, minDist = Infinity;
+                activeRats.forEach(r => {
+                    if (r.currentBunker || r.dead) return; 
+                    const d = Math.sqrt((r.x - cat.x)**2 + (r.y - cat.y)**2);
+                    if (d < minDist) { minDist = d; nearestRat = r; }
+                });
+
+                if (nearestRat && minDist > 5) {
+                    const dx = nearestRat.x - cat.x;
+                    const dy = nearestRat.y - cat.y;
+                    cat.x += (dx / minDist) * effectiveSpeed;
+                    cat.y += (dy / minDist) * effectiveSpeed;
+                }
+
+                // Force Fields
+                activeBunkers.forEach(b => {
+                    const dist = Math.sqrt((cat.x - b.x)**2 + (cat.y - b.y)**2);
+                    const minDist = b.radius + 25; 
+                    if (dist < minDist) {
+                        const angle = Math.atan2(cat.y - b.y, cat.x - b.x);
+                        cat.x = b.x + Math.cos(angle) * minDist;
+                        cat.y = b.y + Math.sin(angle) * minDist;
+                    }
+                });
+
+                cat.element.style.left = cat.x + 'px';
+                cat.element.style.top = cat.y + 'px';
+
+                // Catch logic
+                activeRats.forEach(r => {
+                    if (r.dead || r.currentBunker) return;
+                    let d = Math.sqrt((r.x - cat.x)**2 + (r.y - cat.y)**2);
+                    if (d < (GAME_CONFIG.RAT.SIZE/2 + GAME_CONFIG.CAT.SIZE/2)) {
+                        cat.speed = Math.min(cat.speed + GAME_CONFIG.CAT.SPEED_INCREASE, GAME_CONFIG.CAT.MAX_SPEED);
+                        cat.hunger = Math.min(cat.hunger + GAME_CONFIG.HUNGER.FOOD_RESTORE, GAME_CONFIG.CAT.MAX_HUNGER);
+                        updateBarVisuals(cat.hungerBar, cat.hunger, GAME_CONFIG.CAT.MAX_HUNGER, '#00ff00');
+                        showFloatingText(cat.x, cat.y, "NOM!", "#ffcc00");
+                        killRat(r);
+                        handleSuccessfulCatch(cat.x, cat.y);
+                    }
+                });
+
+                // Items
+                const catRect = cat.element.getBoundingClientRect();
+                document.querySelectorAll('.entity:not(.rat):not(.cat)').forEach(entity => {
+                    if(!entity.parentNode) return;
+                    const rect = entity.getBoundingClientRect();
+                    if (catRect.left < rect.right && catRect.right > rect.left &&
+                        catRect.top < rect.bottom && catRect.bottom > rect.top) {
+                        const type = entity.dataset.type;
+                        if (type === 'bomb') {
+                            entity.remove();
+                            cat.element.innerHTML = `<span>${GAME_CONFIG.ASSETS.EXPLOSION}</span>`;
+                            cat.dead = true;
+                            setTimeout(() => { if(cat.element) cat.element.style.display='none'; }, 200);
+                            showFloatingText(cat.x, cat.y, "RIP CAT", "#ff3333");
+                        } else if (type === 'splat') {
+                            entity.remove();
+                            cat.speed = Math.max(cat.speed - GAME_CONFIG.ITEMS.SPLAT_SLOW, GAME_CONFIG.CAT.MIN_SPEED);
+                            showFloatingText(cat.x, cat.y, "STUCK!", "#00ffff");
+                        }
+                    }
+                });
+            });
+        }
+
+        function checkRatCollisions() {
+            const items = document.querySelectorAll('.entity:not(.rat):not(.cat)');
+            activeRats.forEach(rat => {
+                if (rat.dead || !rat.element) return;
+                const ratRect = rat.element.getBoundingClientRect();
+                items.forEach(item => {
+                    if(!item.parentNode) return; 
+                    const rect = item.getBoundingClientRect();
+                    if (ratRect.left < rect.right && ratRect.right > rect.left &&
+                        ratRect.top < rect.bottom && ratRect.bottom > rect.top) {
+                        const type = item.dataset.type;
+                        if (type === 'cheese') {
+                            item.remove();
+                            rat.speed = Math.min(rat.speed + GAME_CONFIG.RAT.CHEESE_BOOST, GAME_CONFIG.RAT.MAX_SPEED);
+                            rat.hunger = Math.min(rat.hunger + GAME_CONFIG.HUNGER.FOOD_RESTORE, GAME_CONFIG.RAT.MAX_HUNGER);
+                            updateBarVisuals(rat.hungerBar, rat.hunger, GAME_CONFIG.RAT.MAX_HUNGER, '#00ff00');
+                            updateTugOfWar(-GAME_CONFIG.TUG_OF_WAR.RAT_PUSH); 
+                            showFloatingText(rat.x, rat.y, "GULP!", "#ff3333");
+                        } else if (type === 'splat') {
+                            item.remove();
+                            rat.speed = Math.max(rat.speed - GAME_CONFIG.ITEMS.SPLAT_SLOW, GAME_CONFIG.RAT.MIN_SPEED);
+                            showFloatingText(rat.x, rat.y, "SLOW!", "#00ffff");
+                        } else if (type === 'bomb') {
+                            item.remove();
+                            showFloatingText(rat.x, rat.y, "BOOM!", "#ff3333");
+                            killRat(rat);
+                        }
+                    }
+                });
+            });
+        }
 
         function updateUI() {
-            scoreDisplay.innerText = score;
+            tugBar.style.width = tugValue + '%';
             netDisplay.innerText = Math.max(0, netHealth);
             if(netHealth <= 5) netDisplay.style.color = '#ff3333';
             else netDisplay.style.color = '#ffcc00';
         }
 
-        function showFloatingText(x, y, text, color) {
-            const el = document.createElement('div');
-            el.classList.add('floater');
-            el.style.left = x + 'px';
-            el.style.top = y + 'px';
-            el.style.color = color;
-            el.innerText = text;
-            document.body.appendChild(el);
-            setTimeout(() => el.remove(), 1000);
-        }
-
-        function gameOver() {
+        function gameWin() {
             gameActive = false;
-            finalScoreDisplay.innerText = score;
-            gameOverScreen.classList.remove('hidden');
+            document.querySelectorAll('.bunker').forEach(el => el.style.display = 'none');
+            winTimeDisplay.innerText = (totalGameTime / 1000).toFixed(1);
+            winScreen.classList.remove('hidden');
         }
 
-        window.addEventListener('resize', () => {
-            if(rat.x > window.innerWidth) rat.x = window.innerWidth - 50;
-            if(rat.y > window.innerHeight) rat.y = window.innerHeight - 50;
-        });
+        function gameLose(reason) {
+            gameActive = false;
+            document.querySelectorAll('.bunker').forEach(el => el.style.display = 'none');
+            loseReasonDisplay.innerText = reason;
+            loseScreen.classList.remove('hidden');
+        }
+
+        window.addEventListener('resize', () => {});
     </script>
 </body>
 </html>
