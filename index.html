@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Ava's Rat Trap: True Infestation</title>
+    <title>Ava's Rat Trap: Final Fixed</title>
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -67,6 +67,7 @@
         .bunker {
             position: absolute; transform: translate(-50%, -50%);
             border: 4px solid #00ff00; border-radius: 50%; background: #2a2a2a;
+            /* Z-INDEX FIXED: Bunkers (10) sit ON TOP of Rats (5) to hide them */
             z-index: 10; pointer-events: none;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             font-size: 10px; color: #fff; text-align: center;
@@ -81,10 +82,11 @@
             position: absolute; font-size: 40px; transform: translate(-50%, -50%);
             transition: transform 0.1s linear, opacity 0.2s; 
             user-select: none; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            /* Rats are Z-Index 5, so they disappear behind bunkers */
             z-index: 5;
         }
-        .rat { font-size: 50px; z-index: 5; cursor: crosshair; }
-        .cat { font-size: 50px; z-index: 6; pointer-events: none; }
+        .rat { font-size: 50px; cursor: crosshair; }
+        .cat { font-size: 50px; pointer-events: none; z-index: 6; /* Cats above rats */ }
 
         /* BARS */
         .bars-container { position: absolute; top: -20px; display: flex; flex-direction: column; gap: 2px; pointer-events: none; }
@@ -165,29 +167,40 @@
     <div id="game-area"></div>
 
     <script>
+        // MOBILE OPTIMIZED SETTINGS
         const GAME_CONFIG = {
             ASSETS: { RAT: '🐀', CAT: '🐯', CHEESE: '🧀', BOMB: '💣', SPLAT: '🦠', EXPLOSION: '💥' },
             PLAYER: { START_HEALTH: 15, MAX_CATS_INVENTORY: 3, POINTS_PER_CAT: 10 },
             TUG_OF_WAR: { START: 50, WIN: 100, LOSE: 0, PLAYER_PUSH: 2, RAT_PUSH: 4 },
             RAT: {
-                MAX_ON_SCREEN: 30, START_SPEED: 2.0, SPEED_INCREASE: 0.0, CHEESE_BOOST: 1.0,    
-                MAX_SPEED: 12.0, MIN_SPEED: 1.0, SIZE: 50, START_HUNGER: 10, MAX_HUNGER: 10,
+                MAX_ON_SCREEN: 20, 
+                START_SPEED: 1.0,     // Slower
+                SPEED_INCREASE: 0.0, 
+                CHEESE_BOOST: 0.5,    // Lower boost
+                MAX_SPEED: 6.0,       
+                MIN_SPEED: 0.5, 
+                SIZE: 50, 
+                START_HUNGER: 10, MAX_HUNGER: 10,
                 BUNKER_HUNGER_MULTI: 0.5, VISION_RANGE: 300, BASE_FEAR: 1.5, BASE_HUNGER_PULL: 0.5, 
                 NEST_MULTIPLY_TIME: 5000, TUNNEL_CHANCE: 0.5 
             },
             CAT: {
-                MAX_ON_SCREEN: 3, START_SPEED: 1.5, SPEED_INCREASE: 0.5, MAX_SPEED: 8.0, MIN_SPEED: 0.5,
+                MAX_ON_SCREEN: 3, 
+                START_SPEED: 0.8,     // Slower
+                SPEED_INCREASE: 0.3, 
+                MAX_SPEED: 5.0, 
+                MIN_SPEED: 0.3,
                 SIZE: 50, START_HUNGER: 10, MAX_HUNGER: 10, HUNGER_SPEED_MULTI: 0.5
             },
             ITEMS: {
                 BOMB_DAMAGE: 3, MISS_DAMAGE: 1, CHEESE_DAMAGE: 1, SPLAT_DAMAGE: 1,
-                SPLAT_SLOW: 1.0, DESPAWN_TIME: 6000, WARN_TIME: 4000
+                SPLAT_SLOW: 0.5, DESPAWN_TIME: 8000, WARN_TIME: 5000
             },
             SPAWN: {
-                HAZARD_INTERVAL: 2500, BOMB_WEIGHT: 60, SPLAT_WEIGHT: 40,
-                CHEESE_BASE_INTERVAL: 1000, CHEESE_MIN_INTERVAL: 200, CHEESE_CATCHUP_MS: 15 
+                HAZARD_INTERVAL: 3500, BOMB_WEIGHT: 60, SPLAT_WEIGHT: 40,
+                CHEESE_BASE_INTERVAL: 1500, CHEESE_MIN_INTERVAL: 400, CHEESE_CATCHUP_MS: 15 
             },
-            HUNGER: { DECAY_RATE: 1000, FOOD_RESTORE: 2 },
+            HUNGER: { DECAY_RATE: 1500, FOOD_RESTORE: 2 },
             BUNKERS: [
                 { id: 'alpha', radius: 100, capacity: 10, label: "ALPHA" },
                 { id: 'beta', radius: 70, capacity: 5, label: "BETA" },
@@ -630,8 +643,8 @@
                         if (activeRats.length < GAME_CONFIG.RAT.MAX_ON_SCREEN) {
                             // Ejection spawn on perimeter
                             const angle = Math.random() * Math.PI * 2;
-                            const bx = rat.currentBunker.x + Math.cos(angle) * (rat.currentBunker.radius + 10);
-                            const by = rat.currentBunker.y + Math.sin(angle) * (rat.currentBunker.radius + 10);
+                            const bx = rat.currentBunker.x + Math.cos(angle) * (rat.currentBunker.radius + 15);
+                            const by = rat.currentBunker.y + Math.sin(angle) * (rat.currentBunker.radius + 15);
                             createRat(bx, by); 
                             showFloatingText(rat.currentBunker.x, rat.currentBunker.y, "MULTIPLIED!", "#00ffff");
                         } else {
@@ -643,8 +656,8 @@
                             const exitBunker = getRandomBunker(rat.currentBunker);
                             if(exitBunker) {
                                 const angle = Math.random() * Math.PI * 2;
-                                rat.x = exitBunker.x + Math.cos(angle) * (exitBunker.radius + 10);
-                                rat.y = exitBunker.y + Math.sin(angle) * (exitBunker.radius + 10);
+                                rat.x = exitBunker.x + Math.cos(angle) * (exitBunker.radius + 15);
+                                rat.y = exitBunker.y + Math.sin(angle) * (exitBunker.radius + 15);
                                 rat.currentBunker = null; 
                                 rat.element.style.opacity = '1';
                                 showFloatingText(exitBunker.x, exitBunker.y, "TUNNEL!", "#ff00ff");
